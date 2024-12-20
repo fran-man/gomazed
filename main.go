@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	_ "image/png"
 	"log"
@@ -14,12 +15,13 @@ const (
 	screenW  = 220
 	screenH  = 220
 	cellSize = 20
-	gridSize = 5
+	gridSize = 10
 )
 
 var (
 	mazeTemplateImage *e.Image
 	mazeImages        []*e.Image
+	mazeData          *MazeData
 )
 
 type Game struct {
@@ -32,27 +34,120 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *e.Image) {
-	topLeft := mazeImages[0]
-	topRow := mazeImages[3]
-	leftCol := mazeImages[1]
-	other := mazeImages[4]
 	for x := 0; x < gridSize; x++ {
 		for y := 0; y < gridSize; y++ {
 			opt := &e.DrawImageOptions{}
 			opt.GeoM.Translate(10.0, 10.0)
 			if x == 0 && y == 0 {
-				screen.DrawImage(topLeft, opt)
+				drawTopLeftCell(screen, opt, x, y)
 			} else if x == 0 {
 				opt.GeoM.Translate(0, float64(y*cellSize))
-				screen.DrawImage(leftCol, opt)
+				drawLeftColumnCell(screen, opt, x, y)
 			} else if y == 0 {
 				opt.GeoM.Translate(float64(x*cellSize), 0)
-				screen.DrawImage(topRow, opt)
+				drawTopRowCell(screen, opt, x, y)
 			} else {
 				opt.GeoM.Translate(float64(x*cellSize), float64(y*cellSize))
-				screen.DrawImage(other, opt)
+				drawOtherCell(screen, opt, x, y)
 			}
 		}
+	}
+}
+
+func drawTopLeftCell(screen *e.Image, o *e.DrawImageOptions, x int, y int) {
+	c := mazeData.grid[[2]int{x, y}]
+	var nborR, nborB Neighbor
+	for _, n := range c.nbors {
+		if n.coords == [2]int{x + 1, y} {
+			nborR = n
+		} else if n.coords == [2]int{x, y + 1} {
+			nborB = n
+		}
+	}
+
+	if nborB.wall && nborR.wall {
+		screen.DrawImage(mazeImages[0], o)
+	} else if nborB.wall {
+		screen.DrawImage(mazeImages[2], o)
+	} else if nborR.wall {
+		screen.DrawImage(mazeImages[3], o)
+	} else {
+		screen.DrawImage(mazeImages[6], o)
+	}
+}
+
+func drawTopRowCell(screen *e.Image, o *e.DrawImageOptions, x int, y int) {
+	c := mazeData.grid[[2]int{x, y}]
+	var nborR, nborB Neighbor
+	for _, n := range c.nbors {
+		if n.coords == [2]int{x + 1, y} {
+			nborR = n
+		} else if n.coords == [2]int{x, y + 1} {
+			nborB = n
+		}
+	}
+
+	hasWallOnRight := nborR.wall || x == gridSize-1
+	hasWallOnBottom := nborB.wall || y == gridSize-1
+
+	if hasWallOnBottom && hasWallOnRight {
+		screen.DrawImage(mazeImages[4], o)
+	} else if hasWallOnRight {
+		screen.DrawImage(mazeImages[7], o)
+	} else if hasWallOnBottom {
+		screen.DrawImage(mazeImages[9], o)
+	} else {
+		screen.DrawImage(mazeImages[11], o)
+	}
+}
+
+func drawLeftColumnCell(screen *e.Image, o *e.DrawImageOptions, x int, y int) {
+	c := mazeData.grid[[2]int{x, y}]
+	var nborR, nborB Neighbor
+	for _, n := range c.nbors {
+		if n.coords == [2]int{x + 1, y} {
+			nborR = n
+		} else if n.coords == [2]int{x, y + 1} {
+			nborB = n
+		}
+	}
+
+	hasWallOnRight := nborR.wall || x == gridSize-1
+	hasWallOnBottom := nborB.wall || y == gridSize-1
+
+	if hasWallOnBottom && hasWallOnRight {
+		screen.DrawImage(mazeImages[1], o)
+	} else if hasWallOnRight {
+		screen.DrawImage(mazeImages[10], o)
+	} else if hasWallOnBottom {
+		screen.DrawImage(mazeImages[5], o)
+	} else {
+		screen.DrawImage(mazeImages[14], o)
+	}
+}
+
+func drawOtherCell(screen *e.Image, o *e.DrawImageOptions, x int, y int) {
+	c := mazeData.grid[[2]int{x, y}]
+	var nborR, nborB Neighbor
+	for _, n := range c.nbors {
+		if n.coords == [2]int{x + 1, y} {
+			nborR = n
+		} else if n.coords == [2]int{x, y + 1} {
+			nborB = n
+		}
+	}
+
+	hasWallOnRight := nborR.wall || x == gridSize-1
+	hasWallOnBottom := nborB.wall || y == gridSize-1
+
+	if hasWallOnBottom && hasWallOnRight {
+		screen.DrawImage(mazeImages[8], o)
+	} else if hasWallOnRight {
+		screen.DrawImage(mazeImages[12], o)
+	} else if hasWallOnBottom {
+		screen.DrawImage(mazeImages[13], o)
+	} else {
+		screen.DrawImage(mazeImages[15], o)
 	}
 }
 
@@ -61,7 +156,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
-	b, err := os.ReadFile("Maze2.png")
+	var n Neighbor
+	fmt.Printf("%v", n)
+	b, err := os.ReadFile("Maze_all.png")
 	if err != nil {
 		log.Fatal("Could not load the file!")
 	}
@@ -72,11 +169,11 @@ func main() {
 	mazeTemplateImage = e.NewImageFromImage(img)
 	mazeImages = populateMazeImagesSlice(mazeTemplateImage)
 
+	mazeData = initMaze(gridSize, gridSize)
+	mazeData.GenerateDFS()
+
 	e.SetWindowSize(screenW, screenH)
 	e.SetWindowTitle("GOMAZED")
-
-	m := initMaze(gridSize, gridSize)
-	m.GenerateDFS()
 
 	if err := e.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
@@ -84,8 +181,8 @@ func main() {
 }
 
 func populateMazeImagesSlice(*e.Image) []*e.Image {
-	imgs := make([]*e.Image, 7)
-	for i := 0; i < 7; i++ {
+	imgs := make([]*e.Image, 16)
+	for i := 0; i < 16; i++ {
 		si := mazeTemplateImage.SubImage(image.Rect(cellSize*i, 0, cellSize+(cellSize*i), cellSize))
 		imgs[i] = si.(*e.Image)
 	}

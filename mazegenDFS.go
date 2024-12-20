@@ -8,28 +8,37 @@ import (
 func (m *MazeData) GenerateDFS() {
 
 	// Set first cell to visited
-	c := m.grid[[2]int{0, 0}]
-	c.visited = true
-	m.grid[[2]int{0, 0}] = c
-	unusedNeighbors := c.unusedNeighbors()
-	nextNeighborIdx := rand.Intn(len(unusedNeighbors))
-	nextNeighbor := c.nbors[nextNeighborIdx]
-	nextNeighbor.wall = false
-	c.nbors[nextNeighborIdx] = nextNeighbor
-	m.grid[[2]int{0, 0}] = c
-	// remove wall from the corresponding neighbor
-	m.removeWall(nextNeighbor.coords, [2]int{0, 0})
-	fmt.Printf("MAZE %v", m)
+	coords := [2]int{0, 0}
+	c := m.grid[coords]
+	for {
+		fmt.Printf("Currently at Cell: %v\n", coords)
+		c.visited = true
+		m.grid[coords] = c
+		unusedNeighbors := m.unusedNeighbors(coords)
+		if len(unusedNeighbors) == 0 {
+			break
+		}
+		nextNeighborIdx := rand.Intn(len(unusedNeighbors))
+		nextNeighbor := c.nbors[unusedNeighbors[nextNeighborIdx]]
+		nextNeighbor.wall = false
+		c.nbors[unusedNeighbors[nextNeighborIdx]] = nextNeighbor
+		m.grid[coords] = c
+		// remove wall from the corresponding neighbor
+		m.removeWall(nextNeighbor.coords, coords)
+		coords = nextNeighbor.coords
+		c = m.grid[coords]
+	}
+	// fmt.Printf("MAZE %v", m)
 }
 
-func (c Cell) unusedNeighbors() []int {
+func (m *MazeData) unusedNeighbors(coords [2]int) []int {
+	c := m.grid[coords]
 	unused := make([]int, 0)
 	for i, n := range c.nbors {
-		if n.wall {
+		if n.wall && !m.grid[n.coords].visited {
 			unused = append(unused, i)
 		}
 	}
-	fmt.Printf("Unused Neighbors: %v", unused)
 	return unused
 }
 
