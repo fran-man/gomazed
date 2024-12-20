@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"image"
 	_ "image/png"
 	"log"
@@ -15,6 +14,7 @@ const (
 	screenW  = 220
 	screenH  = 220
 	cellSize = 20
+	gridSize = 5
 )
 
 var (
@@ -36,8 +36,8 @@ func (g *Game) Draw(screen *e.Image) {
 	topRow := mazeImages[3]
 	leftCol := mazeImages[1]
 	other := mazeImages[4]
-	for x := 0; x < 10; x++ {
-		for y := 0; y < 10; y++ {
+	for x := 0; x < gridSize; x++ {
+		for y := 0; y < gridSize; y++ {
 			opt := &e.DrawImageOptions{}
 			opt.GeoM.Translate(10.0, 10.0)
 			if x == 0 && y == 0 {
@@ -73,10 +73,10 @@ func main() {
 	mazeImages = populateMazeImagesSlice(mazeTemplateImage)
 
 	e.SetWindowSize(screenW, screenH)
-	e.SetWindowTitle("GOMAZE")
+	e.SetWindowTitle("GOMAZED")
 
-	m := initMaze(10, 10)
-	fmt.Printf("MAZE: %v", m)
+	m := initMaze(gridSize, gridSize)
+	m.GenerateDFS()
 
 	if err := e.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
